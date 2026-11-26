@@ -211,7 +211,8 @@ function valorAleatorio(min: number, max: number): number {
       </section>
     </main>
   `,
-  styles: `
+  
+    styles: `
     :host { display: block; }
     main { max-width: 760px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
 
@@ -219,13 +220,13 @@ function valorAleatorio(min: number, max: number): number {
     .stat { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 0.9rem;
             text-align: center; font: inherit; color: inherit; cursor: pointer;
             transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s; }
-    .stat:hover { transform: translateY(-2px); }
-    .stat.ativo { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+    .stat:hover { transform: translateY(-2px); border-color: #3a4d6e; }
+    .stat.ativo { border-color: var(--primaria); box-shadow: 0 0 0 3px var(--foco); }
     .stat-valor { display: block; font-size: 1.7rem; font-weight: 700; }
     .stat-rotulo { font-size: 0.78rem; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 0.04em; }
-    .stat.pendente .stat-valor { color: #b45309; }
-    .stat.aprovado .stat-valor { color: #047857; }
-    .stat.recusado .stat-valor { color: #b91c1c; }
+    .stat.pendente .stat-valor { color: var(--pend-txt); }
+    .stat.aprovado .stat-valor { color: var(--apr-txt); }
+    .stat.recusado .stat-valor { color: var(--rec-txt); }
 
     .painel { background: var(--card); border: 1px solid var(--borda); border-radius: 14px;
               padding: 1.1rem; margin-bottom: 1.25rem; }
@@ -234,37 +235,40 @@ function valorAleatorio(min: number, max: number): number {
     .dica { margin: -0.4rem 0 0.6rem; font-size: 0.82rem; color: var(--texto-suave); }
 
     .ao-vivo { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; font-weight: 600;
-               color: var(--texto-suave); background: #f3f4f6; padding: 0.25rem 0.65rem; border-radius: 999px; cursor: help; }
-    .ao-vivo.ligado { color: #047857; background: #d1fae5; }
+               color: var(--texto-suave); background: var(--card-suave); padding: 0.25rem 0.65rem;
+               border-radius: 999px; cursor: help; }
+    .ao-vivo.ligado { color: var(--apr-txt); background: var(--apr-bg); }
     .ao-vivo.ligado .ponto { animation: pulsar 1.1s infinite; }
 
     .formulario { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-    input { flex: 1; min-width: 140px; padding: 0.65rem 0.75rem; border: 1px solid #d1d5db;
-            border-radius: 8px; font-size: 0.95rem; }
-    input:focus { outline: 2px solid #93c5fd; border-color: #2563eb; }
-    .botao { padding: 0.65rem 1.2rem; border: 0; border-radius: 8px; background: #2563eb;
+    input { flex: 1; min-width: 140px; padding: 0.65rem 0.75rem; border: 1px solid var(--borda);
+            border-radius: 8px; font-size: 0.95rem; background: var(--campo); color: var(--texto); }
+    input::placeholder { color: #64748b; }
+    input:focus { outline: 2px solid var(--foco); border-color: var(--primaria); }
+    .botao { padding: 0.65rem 1.2rem; border: 0; border-radius: 8px; background: var(--primaria-forte);
              color: #fff; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    .botao:hover:not(:disabled) { background: #1d4ed8; }
+    .botao:hover:not(:disabled) { background: var(--primaria); }
     .botao:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .atalhos { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.7rem;
                font-size: 0.85rem; color: var(--texto-suave); flex-wrap: wrap; }
-    .atalho { border: 1px dashed #9ca3af; background: transparent; border-radius: 999px;
-              padding: 0.25rem 0.75rem; cursor: pointer; font-size: 0.8rem; }
-    .atalho:hover { background: #f3f4f6; }
+    .atalho { border: 1px dashed #475569; background: transparent; color: var(--texto-corpo);
+              border-radius: 999px; padding: 0.25rem 0.75rem; cursor: pointer; font-size: 0.8rem;
+              transition: background 0.2s, border-color 0.2s; }
+    .atalho:hover { background: var(--card-suave); border-color: var(--primaria); }
 
-    .erro { color: #b91c1c; margin: 0.8rem 0 0; font-size: 0.9rem; }
+    .erro { color: var(--rec-txt); margin: 0.8rem 0 0; font-size: 0.9rem; }
     .vazio { color: var(--texto-suave); margin: 0; }
 
     .pedido { border-top: 1px solid var(--borda); animation: entrar 0.35s ease; }
     .pedido:first-of-type { border-top: 0; }
     .pedido-topo { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
                    padding: 0.8rem 0.4rem; cursor: pointer; border-radius: 8px; }
-    .pedido-topo:hover { background: #f9fafb; }
+    .pedido-topo:hover { background: var(--card-suave); }
     .pedido-info { display: flex; flex-direction: column; gap: 0.15rem; }
     .meta { color: var(--texto-suave); font-size: 0.85rem; }
-    .id { cursor: help; border-bottom: 1px dotted #9ca3af; }
-    .motivo { color: #b91c1c; font-size: 0.8rem; }
+    .id { cursor: help; border-bottom: 1px dotted #64748b; }
+    .motivo { color: var(--rec-txt); font-size: 0.8rem; }
     .direita { display: flex; align-items: center; gap: 0.6rem; }
     .seta { color: var(--texto-suave); font-size: 0.7rem; }
 
@@ -274,24 +278,25 @@ function valorAleatorio(min: number, max: number): number {
     .tempo { font-variant-numeric: tabular-nums; color: var(--texto-suave); min-width: 3.6rem; cursor: help; }
     .origem { padding: 0.1rem 0.5rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600;
               white-space: nowrap; cursor: help; }
-    .origem.api { background: #dbeafe; color: #1e40af; }
-    .origem.worker { background: #ede9fe; color: #5b21b6; }
-    .texto { flex: 1; min-width: 180px; }
+    .origem.api { background: var(--api-bg); color: var(--api-txt); }
+    .origem.worker { background: var(--worker-bg); color: var(--worker-txt); }
+    .texto { flex: 1; min-width: 180px; color: var(--texto-corpo); }
 
     .badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem;
              border-radius: 999px; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
              transition: background 0.4s, color 0.4s; cursor: help; }
     .ponto { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-    .badge.pendente { background: #fef3c7; color: #92400e; }
+    .badge.pendente { background: var(--pend-bg); color: var(--pend-txt); }
     .badge.pendente .ponto { animation: pulsar 1.1s infinite; }
-    .badge.aprovado { background: #d1fae5; color: #065f46; }
-    .badge.recusado { background: #fee2e2; color: #991b1b; }
+    .badge.aprovado { background: var(--apr-bg); color: var(--apr-txt); }
+    .badge.recusado { background: var(--rec-bg); color: var(--rec-txt); }
 
     @keyframes pulsar { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(1.4); } }
     @keyframes entrar { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
     @media (max-width: 560px) { .resumo { grid-template-columns: repeat(2, 1fr); } }
   `
+
 })
 export class PedidosPage implements OnInit {
   private api = inject(PedidoApiService);
