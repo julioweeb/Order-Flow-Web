@@ -1,59 +1,75 @@
-# OrderflowWeb
+# OrderFlow Web
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.21.
+![Angular](https://img.shields.io/badge/Angular-DD0031?logo=angular&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 
-## Development server
+Front-end em Angular do **OrderFlow**, um sistema de pedidos assíncrono com .NET e RabbitMQ. A tela cria pedidos e mostra, ao vivo, o que acontece com cada um: da fila até o pagamento aprovado, recusado ou em retry.
 
-To start a local development server, run:
+> Back-end (.NET + RabbitMQ + Supabase): [orderflow](https://github.com/julioweeb/orderflow)
+
+![Demonstração](docs/demo.gif)
+
+## O que ele faz
+
+- **Aba "Como funciona":** explica o fluxo do pedido, o retry com backoff, a Dead Letter Queue e os conceitos de mensageria usados.
+- **Aba "Pedidos ao vivo":** formulário de novo pedido, contadores que funcionam como filtros e lista com o status de cada pedido.
+- **Linha do tempo por pedido:** ao clicar em um pedido, mostra cada etapa (API e worker), com o tempo desde o primeiro evento, incluindo as falhas e as novas tentativas.
+- **Atalhos de teste:** geram cliente e valor aleatórios para os cenários de pedido aprovado, recusado, gateway instável (retry) e gateway fora (DLQ).
+- **Tooltips** explicando status, origem dos eventos e cada atalho.
+- **Tema escuro**, com as cores centralizadas em variáveis CSS.
+
+## Tecnologias
+
+- Angular com *standalone components*, **Signals** e o novo *control flow* (`@if`, `@for`)
+- TypeScript
+- CSS puro (sem biblioteca de UI), com tooltips feitas só com `data-tip`
+
+## Como rodar
+
+**Pré-requisitos:** Node.js, Angular CLI e o [back-end](https://github.com/julioweeb/orderflow) rodando (API, worker e RabbitMQ).
 
 ```bash
+npm install
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Abra http://localhost:4200.
 
-## Code scaffolding
+### Endereço da API
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Por padrão o front chama `http://localhost:5134`. Se a porta da sua API for outra, ajuste em `src/app/pedido-api.service.ts`:
 
-```bash
-ng generate component component-name
+```ts
+private readonly baseUrl = 'http://localhost:5134';
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+A API já libera o CORS para `http://localhost:4200`.
 
-```bash
-ng generate --help
+## Estrutura
+
+```
+src/app/
+  app.ts / app.html / app.css   cabeçalho e abas
+  como-funciona-page.ts         aba de explicação
+  pedidos-page.ts               aba de pedidos ao vivo
+  pedido-api.service.ts         chamadas HTTP para a Orders.Api
+  pedido.model.ts               tipos (Pedido, PedidoEvento, status)
+src/styles.css                  variáveis de cor e tooltips
 ```
 
-## Building
+## Decisões
 
-To build the project run:
+- **Polling inteligente:** a tela só consulta a API (a cada 2 segundos) enquanto há pedido em processamento ou uma linha do tempo aberta. Sem nada em andamento, ela para. O indicador "Acompanhando ao vivo" mostra o estado.
+- **Abas montadas o tempo todo:** a troca de aba só alterna a visibilidade, para a tela de pedidos não perder o estado.
+- **Sem dependências de UI:** tooltips, filtros e animações feitos com CSS e Signals, para entender o que acontece por baixo.
 
-```bash
-ng build
-```
+## Próximos passos
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+- [ ] Trocar o polling por **SignalR** (a API avisa quando o status muda)
+- [ ] Status "Falhou" para pedidos que caem na Dead Letter Queue
+- [ ] Testes de componentes
+- [ ] Alternância entre tema claro e escuro
 
-## Running unit tests
+## Autor
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+**Julio Lima**: [GitHub](https://github.com/julioweeb) · [LinkedIn](https://www.linkedin.com/in/SEU_PERFIL)
