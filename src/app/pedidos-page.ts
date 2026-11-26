@@ -80,13 +80,11 @@ export class PedidosPage implements OnInit {
   cliente = '';
   valor: number | null = null;
 
+  private temporizador?: ReturnType<typeof setTimeout>;
+
   ngOnInit() {
     this.carregar();
-
-    // Consulta a API a cada 2s para ver o status mudar sozinho.
-    // (Evolução futura: trocar o polling por SignalR, com atualização em tempo real.)
-    const intervalo = setInterval(() => this.carregar(), 2000);
-    this.destroyRef.onDestroy(() => clearInterval(intervalo));
+    this.destroyRef.onDestroy(() => clearTimeout(this.temporizador));
   }
 
   carregar() {
@@ -94,9 +92,22 @@ export class PedidosPage implements OnInit {
       next: lista => {
         this.pedidos.set(lista);
         this.erro.set(null);
+        this.agendarProximaConsulta(lista);
       },
-      error: () => this.erro.set('Não foi possível falar com a API. Ela está rodando?')
+      error: () => {
+        this.erro.set('Não foi possível falar com a API. Ela está rodando?');
+        this.agendarProximaConsulta([]);
+      }
     });
+  }
+
+  private agendarProximaConsulta(lista: Pedido[]) {
+    clearTimeout(this.temporizador);
+    const haPendente = lista.some(p => p.status === 'Pendente');
+
+    if (haPendente) {
+      this.temporizador = setTimeout(() => this.carregar(), 2000);
+    }
   }
 
   criar() {
