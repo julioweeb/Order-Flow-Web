@@ -1,1 +1,41 @@
-<app-pedidos-page />
+<header class="topo">
+  <div class="topo-conteudo">
+    <div class="marca">
+      <div class="logo">⚡</div>
+      <div>
+        <h1>OrderFlow</h1>
+        <p>Pedidos assíncronos com .NET, RabbitMQ e Supabase</p>
+      </div>
+    </div>
+
+    <nav class="abas" role="tablist" aria-label="Seções">
+      <button
+        type="button"
+        role="tab"
+        [class.ativa]="aba() === 'como-funciona'"
+        [attr.aria-selected]="aba() === 'como-funciona'"
+        (click)="aba.set('como-funciona')"
+      >
+        📖 Como funciona
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.ativa]="aba() === 'pedidos'"
+        [attr.aria-selected]="aba() === 'pedidos'"
+        (click)="aba.set('pedidos')"
+      >
+        🚀 Pedidos ao vivo
+      </button>
+    </nav>
+  </div>
+</header>
+
+<!-- As duas abas ficam montadas; só alternamos a visibilidade. Assim a tela de pedidos não perde o estado ao trocar de aba. -->
+<section role="tabpanel" [hidden]="aba() !== 'como-funciona'">
+  <app-como-funciona-page (irParaPedidos)="aba.set('pedidos')" />
+</section>
+
+<section role="tabpanel" [hidden]="aba() !== 'pedidos'">
+  <app-pedidos-page />
+</section>

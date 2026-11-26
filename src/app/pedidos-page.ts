@@ -3,38 +3,56 @@ import { FormsModule } from '@angular/forms';
 import { PedidoApiService } from './pedido-api.service';
 import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
 
+type Filtro = 'todos' | StatusPedido;
+
 @Component({
   selector: 'app-pedidos-page',
   imports: [FormsModule],
   template: `
-    <header class="topo">
-      <div class="topo-conteudo">
-        <div class="logo">⚡</div>
-        <div>
-          <h1>OrderFlow</h1>
-          <p>Pedidos assíncronos com .NET, RabbitMQ e Supabase</p>
-        </div>
-      </div>
-    </header>
-
     <main>
       <section class="resumo">
-        <div class="stat">
+        <button
+          type="button"
+          class="stat"
+          [class.ativo]="filtro() === 'todos'"
+          (click)="filtrar('todos')"
+          data-tip="Todos os pedidos criados. Os quatro cards são filtros: clique para filtrar a lista."
+          data-tip-pos="inicio"
+        >
           <span class="stat-valor">{{ total() }}</span>
           <span class="stat-rotulo">Pedidos</span>
-        </div>
-        <div class="stat pendente">
+        </button>
+        <button
+          type="button"
+          class="stat pendente"
+          [class.ativo]="filtro() === 'Pendente'"
+          (click)="filtrar('Pendente')"
+          data-tip="A mensagem ainda está na fila ou o worker está processando o pagamento (inclui as tentativas de retry)."
+        >
           <span class="stat-valor">{{ pendentes() }}</span>
-          <span class="stat-rotulo">Pendentes</span>
-        </div>
-        <div class="stat aprovado">
+          <span class="stat-rotulo">Processando</span>
+        </button>
+        <button
+          type="button"
+          class="stat aprovado"
+          [class.ativo]="filtro() === 'PagamentoAprovado'"
+          (click)="filtrar('PagamentoAprovado')"
+          data-tip="O worker aprovou o pagamento e a API já atualizou o pedido no banco."
+        >
           <span class="stat-valor">{{ aprovados() }}</span>
           <span class="stat-rotulo">Aprovados</span>
-        </div>
-        <div class="stat recusado">
+        </button>
+        <button
+          type="button"
+          class="stat recusado"
+          [class.ativo]="filtro() === 'PagamentoRecusado'"
+          (click)="filtrar('PagamentoRecusado')"
+          data-tip="O worker recusou o pagamento (no demo, valores acima de R$ 5.000)."
+          data-tip-pos="fim"
+        >
           <span class="stat-valor">{{ recusados() }}</span>
           <span class="stat-rotulo">Recusados</span>
-        </div>
+        </button>
       </section>
 
       <section class="painel">
@@ -50,17 +68,53 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
             [(ngModel)]="valor"
             required
           />
-          <button type="submit" class="botao" [disabled]="enviando()">
+          <button
+            type="submit"
+            class="botao"
+            [disabled]="enviando()"
+            data-tip="Envia POST /pedidos. A API responde na hora e o pagamento é processado em segundo plano."
+            data-tip-pos="fim"
+          >
             {{ enviando() ? 'Enviando...' : 'Criar pedido' }}
           </button>
         </form>
 
         <div class="atalhos">
           <span>Teste rápido:</span>
-          <button type="button" class="atalho" (click)="preencher(150)">R$ 150 (aprova)</button>
-          <button type="button" class="atalho" (click)="preencher(9000)">R$ 9.000 (recusa)</button>
-          <button type="button" class="atalho" (click)="preencher(100, 'instavel')">Gateway instável (retry)</button>
-          <button type="button" class="atalho" (click)="preencher(100, 'falha')">Gateway fora (DLQ)</button>
+          <button
+            type="button"
+            class="atalho"
+            (click)="preencher(150)"
+            data-tip="Valor até R$ 5.000: o worker aprova o pagamento."
+            data-tip-pos="inicio"
+          >
+            R$ 150 (aprova)
+          </button>
+          <button
+            type="button"
+            class="atalho"
+            (click)="preencher(9000)"
+            data-tip="Valor acima de R$ 5.000: o worker recusa o pagamento."
+          >
+            R$ 9.000 (recusa)
+          </button>
+          <button
+            type="button"
+            class="atalho"
+            (click)="preencher(100, 'instavel')"
+            data-tip="Cliente 'instavel': o gateway falha 2 vezes e funciona na 3ª. Abra a linha do tempo para ver o retry."
+          >
+            Gateway instável (retry)
+          </button>
+          <button
+            type="button"
+            class="atalho"
+            (click)="preencher(100, 'falha')"
+            data-tip="Cliente 'falha': o gateway nunca funciona. Depois de 4 tentativas a mensagem vai para a Dead Letter Queue."
+            data-tip-pos="fim"
+          >
+            Gateway fora (DLQ)
+          </button>
         </div>
 
         @if (erro()) {
@@ -69,14 +123,27 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
       </section>
 
       <section class="painel">
-        <h2>Pedidos recentes</h2>
-        <p class="dica">Clique em um pedido para ver a linha do tempo do que aconteceu.</p>
+        <div class="cabecalho">
+          <h2>Pedidos recentes</h2>
+          <span
+            class="ao-vivo"
+            [class.ligado]="acompanhando()"
+            data-tip="Enquanto houver pedido processando ou uma linha do tempo aberta, a tela consulta a API a cada 2 segundos. Sem nada em andamento, ela para."
+            data-tip-pos="fim"
+          >
+            <span class="ponto"></span>
+            {{ acompanhando() ? 'Acompanhando ao vivo' : 'Em repouso' }}
+          </span>
+        </div>
+        <p class="dica">Clique em um pedido para ver a linha do tempo do que aconteceu com ele.</p>
 
         @if (pedidos().length === 0) {
           <p class="vazio">Nenhum pedido ainda. Crie o primeiro acima.</p>
+        } @else if (visiveis().length === 0) {
+          <p class="vazio">Nenhum pedido neste filtro.</p>
         }
 
-        @for (p of pedidos(); track p.id) {
+        @for (p of visiveis(); track p.id) {
           <article class="pedido">
             <div
               class="pedido-topo"
@@ -87,13 +154,20 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
             >
               <div class="pedido-info">
                 <strong>{{ p.cliente }}</strong>
-                <span class="meta">{{ moeda(p.valor) }} · {{ hora(p.criadoEmUtc) }} · #{{ p.id.slice(0, 8) }}</span>
+                <span class="meta">
+                  {{ moeda(p.valor) }} · {{ hora(p.criadoEmUtc) }} ·
+                  <span
+                    class="id"
+                    data-tip="Identificador único do pedido (8 primeiros caracteres). Ele viaja dentro de todas as mensagens."
+                    >#{{ p.id.slice(0, 8) }}</span
+                  >
+                </span>
                 @if (p.motivoRecusa) {
                   <span class="motivo">{{ p.motivoRecusa }}</span>
                 }
               </div>
               <div class="direita">
-                <span [class]="classe(p.status)">
+                <span [class]="classe(p.status)" [attr.data-tip]="dicaStatus(p.status)" data-tip-pos="fim">
                   <span class="ponto"></span>
                   {{ rotulo(p.status) }}
                 </span>
@@ -105,8 +179,10 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
               <ol class="timeline">
                 @for (e of eventos(); track e.id) {
                   <li>
-                    <span class="tempo">{{ deslocamento(e) }}</span>
-                    <span [class]="classeOrigem(e.origem)">{{ e.origem }}</span>
+                    <span class="tempo" data-tip="Tempo desde o primeiro evento deste pedido." data-tip-pos="inicio">{{
+                      deslocamento(e)
+                    }}</span>
+                    <span [class]="classeOrigem(e.origem)" [attr.data-tip]="dicaOrigem(e.origem)">{{ e.origem }}</span>
                     <span class="texto">{{ e.mensagem }}</span>
                   </li>
                 }
@@ -122,19 +198,14 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
   `,
   styles: `
     :host { display: block; }
-
-    .topo { background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; padding: 1.5rem 1rem; }
-    .topo-conteudo { max-width: 720px; margin: 0 auto; display: flex; align-items: center; gap: 0.9rem; }
-    .logo { font-size: 1.8rem; background: rgba(255,255,255,0.15); width: 48px; height: 48px;
-            display: grid; place-items: center; border-radius: 12px; }
-    h1 { margin: 0; font-size: 1.5rem; }
-    .topo p { margin: 0.15rem 0 0; opacity: 0.85; font-size: 0.9rem; }
-
-    main { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+    main { max-width: 760px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
 
     .resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
-    .stat { background: var(--card); border: 1px solid var(--borda); border-radius: 12px;
-            padding: 0.9rem; text-align: center; }
+    .stat { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 0.9rem;
+            text-align: center; font: inherit; color: inherit; cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s; }
+    .stat:hover { transform: translateY(-2px); }
+    .stat.ativo { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
     .stat-valor { display: block; font-size: 1.7rem; font-weight: 700; }
     .stat-rotulo { font-size: 0.78rem; color: var(--texto-suave); text-transform: uppercase; letter-spacing: 0.04em; }
     .stat.pendente .stat-valor { color: #b45309; }
@@ -144,7 +215,13 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
     .painel { background: var(--card); border: 1px solid var(--borda); border-radius: 14px;
               padding: 1.1rem; margin-bottom: 1.25rem; }
     h2 { margin: 0 0 0.8rem; font-size: 1.05rem; }
+    .cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
     .dica { margin: -0.4rem 0 0.6rem; font-size: 0.82rem; color: var(--texto-suave); }
+
+    .ao-vivo { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; font-weight: 600;
+               color: var(--texto-suave); background: #f3f4f6; padding: 0.25rem 0.65rem; border-radius: 999px; cursor: help; }
+    .ao-vivo.ligado { color: #047857; background: #d1fae5; }
+    .ao-vivo.ligado .ponto { animation: pulsar 1.1s infinite; }
 
     .formulario { display: flex; gap: 0.6rem; flex-wrap: wrap; }
     input { flex: 1; min-width: 140px; padding: 0.65rem 0.75rem; border: 1px solid #d1d5db;
@@ -171,6 +248,7 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
     .pedido-topo:hover { background: #f9fafb; }
     .pedido-info { display: flex; flex-direction: column; gap: 0.15rem; }
     .meta { color: var(--texto-suave); font-size: 0.85rem; }
+    .id { cursor: help; border-bottom: 1px dotted #9ca3af; }
     .motivo { color: #b91c1c; font-size: 0.8rem; }
     .direita { display: flex; align-items: center; gap: 0.6rem; }
     .seta { color: var(--texto-suave); font-size: 0.7rem; }
@@ -178,15 +256,16 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
     .timeline { list-style: none; margin: 0 0 0.8rem 0.9rem; padding: 0 0 0 1rem;
                 border-left: 2px solid var(--borda); display: flex; flex-direction: column; gap: 0.55rem; }
     .timeline li { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.85rem; flex-wrap: wrap; }
-    .tempo { font-variant-numeric: tabular-nums; color: var(--texto-suave); min-width: 3.6rem; }
-    .origem { padding: 0.1rem 0.5rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+    .tempo { font-variant-numeric: tabular-nums; color: var(--texto-suave); min-width: 3.6rem; cursor: help; }
+    .origem { padding: 0.1rem 0.5rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600;
+              white-space: nowrap; cursor: help; }
     .origem.api { background: #dbeafe; color: #1e40af; }
     .origem.worker { background: #ede9fe; color: #5b21b6; }
     .texto { flex: 1; min-width: 180px; }
 
     .badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem;
              border-radius: 999px; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
-             transition: background 0.4s, color 0.4s; }
+             transition: background 0.4s, color 0.4s; cursor: help; }
     .ponto { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
     .badge.pendente { background: #fef3c7; color: #92400e; }
     .badge.pendente .ponto { animation: pulsar 1.1s infinite; }
@@ -208,9 +287,19 @@ export class PedidosPage implements OnInit {
   erro = signal<string | null>(null);
   enviando = signal(false);
 
+  // true enquanto a tela está consultando a API periodicamente
+  acompanhando = signal(false);
+
   // Pedido com a linha do tempo aberta (um por vez) e os eventos dele
   abertoId = signal<string | null>(null);
   eventos = signal<PedidoEvento[]>([]);
+
+  // Filtro da lista (os cards de contagem funcionam como botões de filtro)
+  filtro = signal<Filtro>('todos');
+  visiveis = computed(() => {
+    const f = this.filtro();
+    return f === 'todos' ? this.pedidos() : this.pedidos().filter(p => p.status === f);
+  });
 
   // Contadores calculados automaticamente a partir da lista
   total = computed(() => this.pedidos().length);
@@ -257,11 +346,16 @@ export class PedidosPage implements OnInit {
   // Continua consultando enquanto houver pedido pendente OU uma linha do tempo aberta
   private agendarProximaConsulta(lista: Pedido[]) {
     clearTimeout(this.temporizador);
-    const haPendente = lista.some(p => p.status === 'Pendente');
+    const continuar = lista.some(p => p.status === 'Pendente') || this.abertoId() !== null;
 
-    if (haPendente || this.abertoId() !== null) {
+    this.acompanhando.set(continuar);
+    if (continuar) {
       this.temporizador = setTimeout(() => this.carregar(), 2000);
     }
+  }
+
+  filtrar(filtro: Filtro) {
+    this.filtro.set(filtro);
   }
 
   alternar(id: string) {
@@ -324,6 +418,12 @@ export class PedidosPage implements OnInit {
     return origem.includes('Worker') ? 'origem worker' : 'origem api';
   }
 
+  dicaOrigem(origem: string): string {
+    return origem.includes('Worker')
+      ? 'Payment.Worker: serviço separado que consome pedido.criado e processa o pagamento.'
+      : 'Orders.Api: recebe o pedido, salva no Supabase e publica e consome mensagens no RabbitMQ.';
+  }
+
   rotulo(status: StatusPedido): string {
     const nomes: Record<StatusPedido, string> = {
       Pendente: 'Processando',
@@ -331,6 +431,15 @@ export class PedidosPage implements OnInit {
       PagamentoRecusado: 'Recusado'
     };
     return nomes[status];
+  }
+
+  dicaStatus(status: StatusPedido): string {
+    const dicas: Record<StatusPedido, string> = {
+      Pendente: 'A mensagem está na fila ou o worker está processando o pagamento (inclui tentativas de retry).',
+      PagamentoAprovado: 'O worker aprovou o pagamento e a API atualizou o pedido no banco.',
+      PagamentoRecusado: 'O worker recusou o pagamento (no demo, valores acima de R$ 5.000).'
+    };
+    return dicas[status];
   }
 
   classe(status: StatusPedido): string {
