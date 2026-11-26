@@ -1,7 +1,7 @@
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PedidoApiService } from './pedido-api.service';
-import { Pedido, StatusPedido } from './pedido.model';
+import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
 
 @Component({
   selector: 'app-pedidos-page',
@@ -59,6 +59,8 @@ import { Pedido, StatusPedido } from './pedido.model';
           <span>Teste rápido:</span>
           <button type="button" class="atalho" (click)="preencher(150)">R$ 150 (aprova)</button>
           <button type="button" class="atalho" (click)="preencher(9000)">R$ 9.000 (recusa)</button>
+          <button type="button" class="atalho" (click)="preencher(100, 'instavel')">Gateway instável (retry)</button>
+          <button type="button" class="atalho" (click)="preencher(100, 'falha')">Gateway fora (DLQ)</button>
         </div>
 
         @if (erro()) {
@@ -68,6 +70,7 @@ import { Pedido, StatusPedido } from './pedido.model';
 
       <section class="painel">
         <h2>Pedidos recentes</h2>
+        <p class="dica">Clique em um pedido para ver a linha do tempo do que aconteceu.</p>
 
         @if (pedidos().length === 0) {
           <p class="vazio">Nenhum pedido ainda. Crie o primeiro acima.</p>
@@ -75,17 +78,43 @@ import { Pedido, StatusPedido } from './pedido.model';
 
         @for (p of pedidos(); track p.id) {
           <article class="pedido">
-            <div class="pedido-info">
-              <strong>{{ p.cliente }}</strong>
-              <span class="meta">{{ moeda(p.valor) }} · {{ hora(p.criadoEmUtc) }}</span>
-              @if (p.motivoRecusa) {
-                <span class="motivo">{{ p.motivoRecusa }}</span>
-              }
+            <div
+              class="pedido-topo"
+              role="button"
+              tabindex="0"
+              (click)="alternar(p.id)"
+              (keydown.enter)="alternar(p.id)"
+            >
+              <div class="pedido-info">
+                <strong>{{ p.cliente }}</strong>
+                <span class="meta">{{ moeda(p.valor) }} · {{ hora(p.criadoEmUtc) }} · #{{ p.id.slice(0, 8) }}</span>
+                @if (p.motivoRecusa) {
+                  <span class="motivo">{{ p.motivoRecusa }}</span>
+                }
+              </div>
+              <div class="direita">
+                <span [class]="classe(p.status)">
+                  <span class="ponto"></span>
+                  {{ rotulo(p.status) }}
+                </span>
+                <span class="seta">{{ abertoId() === p.id ? '▲' : '▼' }}</span>
+              </div>
             </div>
-            <span [class]="classe(p.status)">
-              <span class="ponto"></span>
-              {{ rotulo(p.status) }}
-            </span>
+
+            @if (abertoId() === p.id) {
+              <ol class="timeline">
+                @for (e of eventos(); track e.id) {
+                  <li>
+                    <span class="tempo">{{ deslocamento(e) }}</span>
+                    <span [class]="classeOrigem(e.origem)">{{ e.origem }}</span>
+                    <span class="texto">{{ e.mensagem }}</span>
+                  </li>
+                }
+                @if (eventos().length === 0) {
+                  <li class="vazio">Nenhum evento registrado para este pedido.</li>
+                }
+              </ol>
+            }
           </article>
         }
       </section>
@@ -115,6 +144,7 @@ import { Pedido, StatusPedido } from './pedido.model';
     .painel { background: var(--card); border: 1px solid var(--borda); border-radius: 14px;
               padding: 1.1rem; margin-bottom: 1.25rem; }
     h2 { margin: 0 0 0.8rem; font-size: 1.05rem; }
+    .dica { margin: -0.4rem 0 0.6rem; font-size: 0.82rem; color: var(--texto-suave); }
 
     .formulario { display: flex; gap: 0.6rem; flex-wrap: wrap; }
     input { flex: 1; min-width: 140px; padding: 0.65rem 0.75rem; border: 1px solid #d1d5db;
@@ -134,12 +164,25 @@ import { Pedido, StatusPedido } from './pedido.model';
     .erro { color: #b91c1c; margin: 0.8rem 0 0; font-size: 0.9rem; }
     .vazio { color: var(--texto-suave); margin: 0; }
 
-    .pedido { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
-              padding: 0.8rem 0; border-top: 1px solid var(--borda); animation: entrar 0.35s ease; }
+    .pedido { border-top: 1px solid var(--borda); animation: entrar 0.35s ease; }
     .pedido:first-of-type { border-top: 0; }
+    .pedido-topo { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+                   padding: 0.8rem 0.4rem; cursor: pointer; border-radius: 8px; }
+    .pedido-topo:hover { background: #f9fafb; }
     .pedido-info { display: flex; flex-direction: column; gap: 0.15rem; }
     .meta { color: var(--texto-suave); font-size: 0.85rem; }
     .motivo { color: #b91c1c; font-size: 0.8rem; }
+    .direita { display: flex; align-items: center; gap: 0.6rem; }
+    .seta { color: var(--texto-suave); font-size: 0.7rem; }
+
+    .timeline { list-style: none; margin: 0 0 0.8rem 0.9rem; padding: 0 0 0 1rem;
+                border-left: 2px solid var(--borda); display: flex; flex-direction: column; gap: 0.55rem; }
+    .timeline li { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.85rem; flex-wrap: wrap; }
+    .tempo { font-variant-numeric: tabular-nums; color: var(--texto-suave); min-width: 3.6rem; }
+    .origem { padding: 0.1rem 0.5rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+    .origem.api { background: #dbeafe; color: #1e40af; }
+    .origem.worker { background: #ede9fe; color: #5b21b6; }
+    .texto { flex: 1; min-width: 180px; }
 
     .badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem;
              border-radius: 999px; font-size: 0.8rem; font-weight: 600; white-space: nowrap;
@@ -165,6 +208,10 @@ export class PedidosPage implements OnInit {
   erro = signal<string | null>(null);
   enviando = signal(false);
 
+  // Pedido com a linha do tempo aberta (um por vez) e os eventos dele
+  abertoId = signal<string | null>(null);
+  eventos = signal<PedidoEvento[]>([]);
+
   // Contadores calculados automaticamente a partir da lista
   total = computed(() => this.pedidos().length);
   pendentes = computed(() => this.pedidos().filter(p => p.status === 'Pendente').length);
@@ -184,6 +231,11 @@ export class PedidosPage implements OnInit {
       next: lista => {
         this.pedidos.set(lista);
         this.erro.set(null);
+
+        // Se há uma linha do tempo aberta, atualiza ela junto
+        const aberto = this.abertoId();
+        if (aberto) this.carregarEventos(aberto);
+
         this.agendarProximaConsulta(lista);
       },
       error: () => {
@@ -193,18 +245,42 @@ export class PedidosPage implements OnInit {
     });
   }
 
-  // Só continua consultando enquanto houver pedido pendente
+  private carregarEventos(id: string) {
+    this.api.listarEventos(id).subscribe({
+      next: lista => {
+        // Ignora a resposta se o usuário já fechou ou trocou de pedido
+        if (this.abertoId() === id) this.eventos.set(lista);
+      }
+    });
+  }
+
+  // Continua consultando enquanto houver pedido pendente OU uma linha do tempo aberta
   private agendarProximaConsulta(lista: Pedido[]) {
     clearTimeout(this.temporizador);
-    if (lista.some(p => p.status === 'Pendente')) {
+    const haPendente = lista.some(p => p.status === 'Pendente');
+
+    if (haPendente || this.abertoId() !== null) {
       this.temporizador = setTimeout(() => this.carregar(), 2000);
     }
   }
 
-  // Preenche o formulário com um valor de teste (e um nome, se estiver vazio)
-  preencher(valor: number) {
+  alternar(id: string) {
+    if (this.abertoId() === id) {
+      this.abertoId.set(null);
+      this.eventos.set([]);
+      return;
+    }
+
+    this.abertoId.set(id);
+    this.eventos.set([]);
+    this.carregar(); // busca a lista e os eventos e liga o acompanhamento
+  }
+
+  // Preenche o formulário com um cenário de teste (e um nome, se estiver vazio)
+  preencher(valor: number, nome?: string) {
     this.valor = valor;
-    if (!this.cliente.trim()) this.cliente = 'Cliente teste';
+    if (nome) this.cliente = nome;
+    else if (!this.cliente.trim()) this.cliente = 'Cliente teste';
   }
 
   criar() {
@@ -231,6 +307,21 @@ export class PedidosPage implements OnInit {
 
   hora(iso: string): string {
     return new Date(iso).toLocaleTimeString('pt-BR');
+  }
+
+  // Tempo decorrido desde o primeiro evento do pedido (ex.: +2,1s)
+  deslocamento(e: PedidoEvento): string {
+    const lista = this.eventos();
+    if (lista.length === 0) return '';
+
+    const inicio = new Date(lista[0].ocorridoEmUtc).getTime();
+    const segundos = (new Date(e.ocorridoEmUtc).getTime() - inicio) / 1000;
+
+    return '+' + segundos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 's';
+  }
+
+  classeOrigem(origem: string): string {
+    return origem.includes('Worker') ? 'origem worker' : 'origem api';
   }
 
   rotulo(status: StatusPedido): string {

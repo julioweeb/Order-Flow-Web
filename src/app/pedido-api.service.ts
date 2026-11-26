@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { CriarPedidoRequest, Pedido } from './pedido.model';
+import { CriarPedidoRequest, Pedido, PedidoEvento } from './pedido.model';
 
 @Injectable({ providedIn: 'root' })
 export class PedidoApiService {
@@ -16,5 +16,9 @@ export class PedidoApiService {
 
   criar(pedido: CriarPedidoRequest): Observable<Pedido> {
     return this.http.post<Pedido>(`${this.baseUrl}/pedidos`, pedido);
+  }
+
+  listarEventos(id: string): Observable<PedidoEvento[]> {
+    return this.http.get<PedidoEvento[]>(`${this.baseUrl}/pedidos/${id}/eventos`);
   }
 }
