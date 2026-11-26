@@ -5,6 +5,21 @@ import { Pedido, PedidoEvento, StatusPedido } from './pedido.model';
 
 type Filtro = 'todos' | StatusPedido;
 
+type Cenario = 'aprova' | 'recusa' | 'instavel' | 'falha';
+
+const NOMES = ['Ana', 'Bruno', 'Carla', 'Diego', 'Fernanda', 'Gustavo', 'Helena', 'Igor',
+               'Juliana', 'Lucas', 'Marina', 'Rafael', 'Sofia', 'Thiago', 'Vanessa'];
+const SOBRENOMES = ['Almeida', 'Barros', 'Costa', 'Dias', 'Ferreira', 'Gomes', 'Lima', 'Martins',
+                    'Nunes', 'Oliveira', 'Pereira', 'Ribeiro', 'Santos', 'Silva', 'Souza'];
+
+const sortear = <T>(lista: T[]): T => lista[Math.floor(Math.random() * lista.length)];
+
+// Sorteia um valor de loja: múltiplo de 10 menos 10 centavos (ex.: 149,90)
+function valorAleatorio(min: number, max: number): number {
+  const base = Math.round((min + Math.random() * (max - min)) / 10) * 10;
+  return +(base - 0.1).toFixed(2);
+}
+
 @Component({
   selector: 'app-pedidos-page',
   imports: [FormsModule],
@@ -79,38 +94,38 @@ type Filtro = 'todos' | StatusPedido;
           </button>
         </form>
 
-        <div class="atalhos">
+          <div class="atalhos">
           <span>Teste rápido:</span>
           <button
             type="button"
             class="atalho"
-            (click)="preencher(150)"
-            data-tip="Valor até R$ 5.000: o worker aprova o pagamento."
+            (click)="preencher('aprova')"
+            data-tip="Gera um cliente aleatório com valor até R$ 5.000: o worker aprova o pagamento."
             data-tip-pos="inicio"
           >
-            R$ 150 (aprova)
+            Pedido aprovado
           </button>
           <button
             type="button"
             class="atalho"
-            (click)="preencher(9000)"
-            data-tip="Valor acima de R$ 5.000: o worker recusa o pagamento."
+            (click)="preencher('recusa')"
+            data-tip="Gera um cliente aleatório com valor acima de R$ 5.000: o worker recusa o pagamento."
           >
-            R$ 9.000 (recusa)
+            Pedido recusado
           </button>
           <button
             type="button"
             class="atalho"
-            (click)="preencher(100, 'instavel')"
-            data-tip="Cliente 'instavel': o gateway falha 2 vezes e funciona na 3ª. Abra a linha do tempo para ver o retry."
+            (click)="preencher('instavel')"
+            data-tip="O nome ganha a marca [instavel]: o gateway falha 2 vezes e funciona na 3ª. Abra a linha do tempo para ver o retry."
           >
             Gateway instável (retry)
           </button>
           <button
             type="button"
             class="atalho"
-            (click)="preencher(100, 'falha')"
-            data-tip="Cliente 'falha': o gateway nunca funciona. Depois de 4 tentativas a mensagem vai para a Dead Letter Queue."
+            (click)="preencher('falha')"
+            data-tip="O nome ganha a marca [falha]: o gateway nunca funciona. Depois de 4 tentativas a mensagem vai para a Dead Letter Queue."
             data-tip-pos="fim"
           >
             Gateway fora (DLQ)
@@ -370,11 +385,28 @@ export class PedidosPage implements OnInit {
     this.carregar(); // busca a lista e os eventos e liga o acompanhamento
   }
 
-  // Preenche o formulário com um cenário de teste (e um nome, se estiver vazio)
-  preencher(valor: number, nome?: string) {
-    this.valor = valor;
-    if (nome) this.cliente = nome;
-    else if (!this.cliente.trim()) this.cliente = 'Cliente teste';
+    // Cada atalho gera um cliente e um valor novos, coerentes com o cenário
+  preencher(cenario: Cenario) {
+    const nome = `${sortear(NOMES)} ${sortear(SOBRENOMES)}`;
+
+    switch (cenario) {
+      case 'aprova': // abaixo do limite de R$ 5.000: o worker aprova
+        this.cliente = nome;
+        this.valor = valorAleatorio(60, 4900);
+        break;
+      case 'recusa': // acima do limite: o worker recusa
+        this.cliente = nome;
+        this.valor = valorAleatorio(5100, 25000);
+        break;
+      case 'instavel': // a marca no nome faz o worker simular um gateway instável
+        this.cliente = `${nome} [instavel]`;
+        this.valor = valorAleatorio(80, 1500);
+        break;
+      case 'falha': // a marca no nome faz o worker simular um gateway fora do ar
+        this.cliente = `${nome} [falha]`;
+        this.valor = valorAleatorio(80, 1500);
+        break;
+    }
   }
 
   criar() {

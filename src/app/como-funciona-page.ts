@@ -253,9 +253,9 @@ export class ComoFuncionaPage {
     }
   ];
 
-  cenarios = [
-    { titulo: 'Atalho "R$ 150"', resultado: 'Pagamento aprovado em ~2 segundos.' },
-    { titulo: 'Atalho "R$ 9.000"', resultado: 'Pagamento recusado: valor acima do limite.' },
+    cenarios = [
+    { titulo: 'Atalho "Pedido aprovado"', resultado: 'Valor até R$ 5.000: pagamento aprovado em ~2 segundos.' },
+    { titulo: 'Atalho "Pedido recusado"', resultado: 'Valor acima de R$ 5.000: pagamento recusado.' },
     { titulo: 'Atalho "Gateway instável"', resultado: 'Falha 2 vezes, acerta na 3ª: veja o retry na linha do tempo.' },
     { titulo: 'Atalho "Gateway fora"', resultado: 'Falha em todas as tentativas e a mensagem vai para a DLQ.' }
   ];
